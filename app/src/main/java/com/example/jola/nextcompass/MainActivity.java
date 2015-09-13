@@ -42,7 +42,6 @@ public class MainActivity extends Activity implements SensorEventListener{
     private float[] orintationMatrix = new float[3];
 
     private float degreeStart = 0f;
-    private float arrowStart;
     private float moveArrow;
     private float rotationInDegrees;
 
@@ -50,7 +49,8 @@ public class MainActivity extends Activity implements SensorEventListener{
 
     private ImageView imageView;
     private EditText edit_lat, edit_long;
-    private float get_lat_value, get_long_value;
+    private float get_lat_value = 0;
+    private float get_long_value = 0;
     private String value_lat, value_long;
 
     @Override
@@ -83,7 +83,6 @@ public class MainActivity extends Activity implements SensorEventListener{
         alertDialog.setTitle("Latitude");
         alertDialog.setMessage("Enter new latitude");
         alertDialog.setView(input);
-
         alertDialog.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
@@ -110,7 +109,7 @@ public class MainActivity extends Activity implements SensorEventListener{
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
         alertDialog.setTitle("Longitude");
         alertDialog.setMessage("Enter new longitude");
-        alertDialog.setView(edit_lat);
+        alertDialog.setView(input2);
         alertDialog.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
@@ -141,35 +140,65 @@ public class MainActivity extends Activity implements SensorEventListener{
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             System.arraycopy(event.values, 0, gravityStart, 0, event.values.length);
-        }else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+        } else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
             System.arraycopy(event.values, 0, magneticFieldStart, 0, event.values.length);
         }
-        if (gravityStart != null && magneticFieldStart != null) {
-           SensorManager.getRotationMatrix(rotationMartix, null, gravityStart, magneticFieldStart);
-            SensorManager.getOrientation(rotationMartix, orintationMatrix);
-            float rotationInRadians = orintationMatrix[0];
-            rotationInDegrees = (float) Math.toDegrees(rotationInRadians);
+        if (gravityStart != null && magneticFieldStart != null){
+            SensorManager.getRotationMatrix(rotationMartix, null, gravityStart, magneticFieldStart);
+        SensorManager.getOrientation(rotationMartix, orintationMatrix);
+        float rotationInRadians = orintationMatrix[0];
+        rotationInDegrees = (float) Math.toDegrees(rotationInRadians);
 
-            RotateAnimation ra = new RotateAnimation(
-                    degreeStart,
-                    -rotationInDegrees,
-                    Animation.RELATIVE_TO_SELF, 0.5f,
-                    Animation.RELATIVE_TO_SELF,
-                    0.5f);
+        RotateAnimation ra = new RotateAnimation(
+                degreeStart,
+                -rotationInDegrees,
+                Animation.RELATIVE_TO_SELF, 0.5f,
+                Animation.RELATIVE_TO_SELF,
+                0.5f);
 
-            ra.setDuration(210);
-            ra.setFillAfter(true);
-            imageView.startAnimation(ra);
+        ra.setDuration(210);
+        ra.setFillAfter(true);
+        imageView.startAnimation(ra);
 
-            degreeStart = -rotationInDegrees;
+        degreeStart = -rotationInDegrees;
+    }
+       if(get_lat_value != 0 && get_long_value !=0) {
 
-          /*  arrowStart = rotationInDegrees;
-            if(arrowStart > get_lat_value && arrowStart > get_long_value){
-                moveArrow += rotationInDegrees;
-            }*/
-        }
+           if (get_lat_value <= 45.0 && get_long_value < 45.0) {
+               //north
+               moveArrow = 0f;
+           }
+           if (get_lat_value >= 45.0 && get_lat_value <= 80.0 && get_long_value <= 80.0  && get_long_value > 45.0) {
+               //Northeast
+               moveArrow = 45f;
+           }
+           if (get_lat_value > 80.0 && get_lat_value <= 100.0 && get_long_value <= 100.0 && get_long_value > 80.0) {
+               //East
+               moveArrow = 90f;
+           }
+           if (get_lat_value > 100.0 &&  get_lat_value <= 140.0 && get_long_value <= 140.0 && get_long_value > 100.0) {
+               //Southeast
+               moveArrow = 135f;
+           }
+           if (get_lat_value > 140.0 && get_lat_value <= 180.0 && get_long_value <= 180.0 && get_long_value > 140.0) {
+               //South
+               moveArrow = 180f;
+           }
+           if (get_lat_value >= -45.0 && get_lat_value <= 0.0 && get_long_value > -45.0 && get_long_value < 0.0) {
+               //Southwest
+                moveArrow = 225f;
+           }
+           if (get_lat_value < -45.0 && get_lat_value >= -100.0 && get_long_value >= -100.0  && get_long_value < -45.0) {
+               //west
+               moveArrow = 270f;
+           }
+           if (get_lat_value < -100.0 && get_lat_value >= -140.0 && get_long_value >= -140.0 && get_long_value > -100.0) {
+               //Northwest
+               moveArrow = 315f;
+           }
+       }
     }
 
     @Override
@@ -201,7 +230,7 @@ public class MainActivity extends Activity implements SensorEventListener{
 
         protected void onDraw(Canvas canvas){
             canvas.save();
-            canvas.rotate(-rotationInDegrees, centerX, centerY);
+            canvas.rotate(moveArrow, centerX, centerY);
             canvas.drawBitmap(bitmapArrow, arrowLeftY, arrowViewTopX, null);
             canvas.restore();
         }
