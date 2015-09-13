@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -11,58 +12,73 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 public class MainActivity extends Activity implements SensorEventListener{
 
     private RelativeLayout relativeLayout;
     private Sensor megnetomerter;
-    private Sensor accel;
+    private Sensor accelometer;
     private SensorManager sensorManager;
 
-    private float[] gravity = null;
-    private float[] magnetic = null;
+    private float[] gravityStart = new float[3];
+    private float[] magneticFieldStart = new float[3];
 
-    private double rotationInDegrees;
+    private float[] rotationMartix = new float[9];
+    private float[] orintationMatrix = new float[3];
+
+    private float degreeStart = 0f;
+    private float arrowStart;
+    private float moveArrow;
+    private float rotationInDegrees;
+
     private ArrowView arrowView;
 
+    private ImageView imageView;
     private EditText edit_lat, edit_long;
     private float get_lat_value, get_long_value;
-    String lat, lang, check;
+    private String value_lat, value_long;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        imageView = (ImageView) findViewById(R.id.imageView);
+
         edit_lat = new EditText(MainActivity.this);
         edit_long = new EditText(MainActivity.this);
-
-        lat = edit_lat.getText().toString();
-        Log.d("value2", lat.toString());
 
         relativeLayout = (RelativeLayout) findViewById(R.id.relativeLayout);
         arrowView = new ArrowView(getApplicationContext());
         relativeLayout.addView(arrowView);
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        accelometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         megnetomerter = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 
-        if(null == accel || null == megnetomerter){
+        if(null == megnetomerter && null == accelometer){
             finish();
         }
     }
 
     public void getLat(View view) {
-        final EditText input = new EditText(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        final  EditText input = new EditText(this);
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
         alertDialog.setTitle("Latitude");
         alertDialog.setMessage("Enter new latitude");
@@ -72,7 +88,11 @@ public class MainActivity extends Activity implements SensorEventListener{
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 edit_lat.setText(input.getText());
-               // lat = edit_lat.getText().toString();
+                value_lat = edit_lat.getText().toString();
+                Log.d("value2", value_lat);
+                get_lat_value = Float.parseFloat(value_lat);
+                Log.d("value2", String.valueOf(get_lat_value));
+
             }
         });
         alertDialog.setNegativeButton("Cancle", new DialogInterface.OnClickListener() {
@@ -85,7 +105,8 @@ public class MainActivity extends Activity implements SensorEventListener{
     }
 
     public void getLong(View view) {
-        final EditText input = new EditText(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        final EditText input2 = new EditText(this);
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
         alertDialog.setTitle("Longitude");
         alertDialog.setMessage("Enter new longitude");
@@ -93,8 +114,9 @@ public class MainActivity extends Activity implements SensorEventListener{
         alertDialog.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                edit_long.setText(input.getText());
-               // lang = edit_lat.getText().toString();
+                edit_long.setText(input2.getText());
+                value_long = edit_long.getText().toString();
+                get_long_value = Float.parseFloat(value_long);
             }
         });
         alertDialog.setNegativeButton("Cancle", new DialogInterface.OnClickListener() {
@@ -108,7 +130,7 @@ public class MainActivity extends Activity implements SensorEventListener{
 
     protected void onResume(){
         super.onResume();
-        sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, accelometer, SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(this, megnetomerter, SensorManager.SENSOR_DELAY_NORMAL);
     }
 
@@ -120,24 +142,33 @@ public class MainActivity extends Activity implements SensorEventListener{
     @Override
     public void onSensorChanged(SensorEvent event) {
         if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
-            gravity = new float[3];
-            System.arraycopy(event.values, 0, gravity, 0, 3);
-        }else
-        if(event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD){
-            magnetic = new float[3];
-            System.arraycopy(event.values, 0, magnetic, 0, 3);
+            System.arraycopy(event.values, 0, gravityStart, 0, event.values.length);
+        }else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            System.arraycopy(event.values, 0, magneticFieldStart, 0, event.values.length);
         }
-        if(gravity != null && magnetic != null){
-            float rotationMartix[] = new float[9];
-            boolean success = SensorManager.getRotationMatrix(rotationMartix, null, gravity, magnetic);
-            if(success){
-                float orientationMatrix[] = new float[3];
-                SensorManager.getOrientation(rotationMartix, orientationMatrix);
-                float rotationInRadions = orientationMatrix[0];
-                rotationInDegrees = Math.toDegrees(rotationInRadions);
-                arrowView.invalidate();
-                gravity = magnetic = null;
-            }
+        if (gravityStart != null && magneticFieldStart != null) {
+           SensorManager.getRotationMatrix(rotationMartix, null, gravityStart, magneticFieldStart);
+            SensorManager.getOrientation(rotationMartix, orintationMatrix);
+            float rotationInRadians = orintationMatrix[0];
+            rotationInDegrees = (float) Math.toDegrees(rotationInRadians);
+
+            RotateAnimation ra = new RotateAnimation(
+                    degreeStart,
+                    -rotationInDegrees,
+                    Animation.RELATIVE_TO_SELF, 0.5f,
+                    Animation.RELATIVE_TO_SELF,
+                    0.5f);
+
+            ra.setDuration(210);
+            ra.setFillAfter(true);
+            imageView.startAnimation(ra);
+
+            degreeStart = -rotationInDegrees;
+
+          /*  arrowStart = rotationInDegrees;
+            if(arrowStart > get_lat_value && arrowStart > get_long_value){
+                moveArrow += rotationInDegrees;
+            }*/
         }
     }
 
@@ -147,9 +178,6 @@ public class MainActivity extends Activity implements SensorEventListener{
     }
 
     private class ArrowView extends View {
-        Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.compassbackup);
-        int bitmapWidth= bitmap.getWidth();
-
         Bitmap bitmapArrow = BitmapFactory.decodeResource(getResources(), R.drawable.arrow);
         int bitmapArrowWidth= bitmapArrow.getWidth();
 
@@ -159,30 +187,21 @@ public class MainActivity extends Activity implements SensorEventListener{
         int centerX;
         int centerY;
 
-        int viewTopX;
-        int viewLeftY;
-
         int arrowLeftY;
         int arrowViewTopX;
 
         public void onSizeChanged(int w, int h, int oldW, int oldH){
             parentWidth = relativeLayout.getWidth();
             parentHeight = relativeLayout.getHeight();
-
             centerX = parentWidth /2;
-            centerY = parentHeight /2;
-
-            viewLeftY = centerX - bitmapWidth/2;
-            viewTopX = centerY - bitmapWidth/2;
-
+            centerY = parentHeight /3;
             arrowLeftY = centerX - bitmapArrowWidth / 2;
             arrowViewTopX = centerY - bitmapArrowWidth / 2;
         }
 
         protected void onDraw(Canvas canvas){
             canvas.save();
-            canvas.rotate((float) -rotationInDegrees, centerX, centerY);
-            canvas.drawBitmap(bitmap, viewLeftY, viewTopX, null);
+            canvas.rotate(-rotationInDegrees, centerX, centerY);
             canvas.drawBitmap(bitmapArrow, arrowLeftY, arrowViewTopX, null);
             canvas.restore();
         }

@@ -1,8 +1,10 @@
 <resources>
-    <string name="app_name">nextCompass</string>
+    <string name="app_name">Compass</string>
 
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
     <string name="lat_string">Latitude</string>
     <string name="long_string">Longitiude</string>
+    <string name="hint_lat">Enter new latitude</string>
+    <string name="hint_long">Enter new longitude </string>
 </resources>
